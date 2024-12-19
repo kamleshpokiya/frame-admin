@@ -41,7 +41,7 @@ export const useCollageStore = create<CollageStore>((set, get) => ({
           y: 20,
           width: 150,
           height: 150,
-          background: "#9ca2ae",
+          background: "#333333",
         },
       ],
     }));

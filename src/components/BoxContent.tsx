@@ -17,7 +17,7 @@ export const BoxContent: React.FC<BoxContentProps> = ({
 }) => {
   return (
     <div
-      className={`relative bg-gray-400 border-2 ${
+      className={`relative bg-[#333333] border-2 ${
         isSelected ? 'border-blue-500' : 'border-gray-200'
       }  cursor-move handle`}
       style={{ width, height }}
