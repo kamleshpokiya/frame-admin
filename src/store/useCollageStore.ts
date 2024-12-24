@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { Box } from "../types";
+import { IFrames } from "../constants/types";
+import { FRAMES } from "../constants/frames";
 
 interface CollageStore {
   boxes: Box[];
@@ -17,6 +19,10 @@ interface CollageStore {
   updateContainerStyle: (
     updates: Partial<{ width: number; height: number; x: number; y: number }>
   ) => void;
+  matSize: { width: number; height: number };
+  updateMatSize: (updates: Partial<{ width: number; height: number }>) => void;
+  selectedFrame: IFrames | null;
+  updatedFrame: (frame: IFrames | null) => void;
 }
 
 export const useCollageStore = create<CollageStore>((set, get) => ({
@@ -24,12 +30,17 @@ export const useCollageStore = create<CollageStore>((set, get) => ({
   selectedBox: null,
   copiedBox: null,
   containerStyle: {
-    width: 800,
+    width: 600,
     height: 600,
     x: 0,
     y: 0,
   },
   generatedHtml: "",
+  matSize: {
+    width: 480, // Default proportional size (80% of width)
+    height: 480, // Default proportional size (80% of height)
+  },
+  selectedFrame: FRAMES[0],
 
   addBox: () => {
     set((state) => ({
@@ -98,4 +109,14 @@ export const useCollageStore = create<CollageStore>((set, get) => ({
       },
     }));
   },
+
+  updateMatSize: (updates) => {
+    set((state) => ({
+      matSize: {
+        ...state.matSize,
+        ...updates,
+      },
+    }));
+  },
+  updatedFrame: (frame) => set({ selectedFrame: frame }),
 }));

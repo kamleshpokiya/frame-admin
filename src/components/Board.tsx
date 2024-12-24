@@ -1,83 +1,94 @@
-import React, { useCallback, useState, useRef, useEffect } from "react";
-import { ResizableBox } from "./ResizableBox";
-import { Guidelines } from "./Guidelines";
-import { ContextMenu } from "./ContextMenu/ContextMenu";
+import React, { useState, useEffect } from "react";
 import { useCollageStore } from "../store/useCollageStore";
-import { useContextMenu } from "../hooks/useContextMenu";
-import { Box, GuidelineType } from "../types";
-import { Plus } from "lucide-react";
-import { calculateSnapping } from "../utils/snapUtils";
 import { useNavigate } from "react-router-dom";
+import { FRAMES } from "../constants/frames";
+import { IFrames } from "../constants/types";
 
 export const Board: React.FC = () => {
   const {
     boxes,
-    addBox,
-    updateBox,
-    selectedBox,
-    pasteBox,
     setGeneratedHtml,
-    containerStyle,
     updateContainerStyle,
+    matSize,
+    updateMatSize,
+    updatedFrame,
   } = useCollageStore();
-  const [guidelines, setGuidelines] = useState<GuidelineType[]>([]);
-  const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu();
-  const navigate = useNavigate();
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [selectedFrame, setSelectedFrame] = useState(FRAMES[0]);
+  const [selectedDimension, setSelectedDimension] = useState({
+    width: FRAMES[0].dimensions[0].width,
+    height: FRAMES[0].dimensions[0].width,
+  });
+  const [sliderValue, setSliderValue] = useState(1);
+  const [figureSize, setFigureSize] = useState({ width: 600, height: 600 });
+  const [matsSize, setMatsSize] = useState({
+    width: 500,
+    height: 500,
+  });
+  const [selectedFrameWidth, setSelectedFrameWidth] = useState(1);
 
-  const handleDrag = useCallback(
-    (id: string, x: number, y: number) => {
-      const activeBox = boxes.find((box) => box.id === id);
-      if (activeBox) {
-        const otherBoxes = boxes.filter((box) => box.id !== id);
-        const {
-          snappedX,
-          snappedY,
-          guidelines: newGuidelines,
-        } = calculateSnapping({ ...activeBox, x, y }, otherBoxes);
+  // Handle Dimension Change
+  const handleDimensionChange = (dimension: {
+    width: number;
+    height: number;
+  }) => {
+    const { width, height } = dimension;
 
-        updateBox(id, { x: snappedX, y: snappedY });
-        setGuidelines(newGuidelines);
-      }
-    },
-    [boxes, updateBox]
-  );
-
-  const handleResize = useCallback(
-    (id: string, width: number, height: number) => {
-      updateBox(id, { width, height });
-      setGuidelines([]); // Clear guidelines when resizing
-    },
-    [updateBox]
-  );
-
-  const handleContainerResize = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = containerRef.current;
-    if (!target) return;
-
-    const rect = target.getBoundingClientRect();
+    const newWidth =
+      width >= height
+        ? {
+            width: 600,
+            height: (height * 600) / width,
+          }
+        : {
+            width: (width * 600) / height,
+            height: 600,
+          };
+    setFigureSize(newWidth);
     updateContainerStyle({
-      width: rect.width,
-      height: rect.height,
+      width: newWidth.width,
+      height: newWidth.height,
+    });
+    setMatsSize({
+      width: newWidth.width - 100,
+      height: newWidth.height - 100,
     });
   };
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        pasteBox();
-      }
-    },
-    [pasteBox]
-  );
-
+  // Handle Mate Size based on Slider
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleKeyDown]);
+    const step = sliderValue - 1; // Steps after the default value (1)
+    const decreasePercentage = step * 3; // 3% decrease per step
+
+    const newWidth = matsSize.width * (1 - decreasePercentage / 100);
+    const newHeight = matsSize.height * (1 - decreasePercentage / 100);
+
+    updateMatSize({
+      width: newWidth,
+      height: newHeight,
+    });
+  }, [sliderValue, matsSize]);
+
+  const navigate = useNavigate();
+
+  const handleFrameClick = (frame: IFrames) => {
+    setSelectedFrame(frame);
+    handleDimensionChange(frame.dimensions[0]);
+    updatedFrame(frame);
+    setSelectedFrameWidth(frame.depth[0]);
+  };
+
+  const handleDimensionSelect = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const selectedDimension = selectedFrame.dimensions.find(
+      (d) => d.id === Number(event.target.value)
+    );
+    if (selectedDimension) {
+      handleDimensionChange(selectedDimension);
+      setSelectedDimension(selectedDimension);
+    }
+  };
 
   const generateHtml = () => {
     const boxesHtml = boxes
@@ -92,24 +103,7 @@ export const Board: React.FC = () => {
 "></div>`
       )
       .join("\n");
-
-    const html = `<div
-  style="
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: ${containerStyle.width}px;
-    height: ${containerStyle.height}px;
-    overflow: hidden;
-    background: white;
-    box-shadow: rgba(0, 0, 0, 0.7) 0px 2px 5px inset;
-    transform: translate(-50%, -50%);
-  "
->
-    ${boxesHtml}
-</div>`;
-
-    return html;
+    return boxesHtml;
   };
 
   const handleNext = () => {
@@ -118,60 +112,134 @@ export const Board: React.FC = () => {
     navigate("/editor");
   };
 
-  useEffect(() => {
-    console.log("containerStyle", containerStyle);
-  }, [containerStyle]);
-
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <div className="mb-4 flex gap-4">
-        <button
-          onClick={addBox}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-        >
-          <Plus size={20} /> Add Box
-        </button>
-
-        <button
-          onClick={handleNext}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-        >
-          Next
-        </button>
+      <div className="flex gap-10 items-center">
+        <p>
+          {`${selectedDimension.width}"`} x {`${selectedDimension.height}"`}
+        </p>
+        <div className="">
+          <button
+            onClick={handleNext}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+          >
+            Next
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-8">
-        <div
-          ref={containerRef}
-          style={{
-            left: containerStyle.x,
-            top: containerStyle.y,
-            width: containerStyle.width,
-            height: containerStyle.height,
-          }}
-          className="relative bg-white shadow-lg border-2 border-gray-200 resize overflow-auto"
-          onMouseUp={handleContainerResize}
-        >
-          <div className="absolute inset-0">
-            {boxes.map((box) => (
-              <ResizableBox
-                key={box.id}
-                box={box}
-                onDrag={handleDrag}
-                onResize={handleResize}
-                isSelected={box.id === selectedBox}
-                onContextMenu={handleContextMenu}
-              />
-            ))}
-            <Guidelines guidelines={guidelines} />
-            {contextMenu.show && (
-              <ContextMenu
-                x={contextMenu.x}
-                y={contextMenu.y}
-                boxId={contextMenu.boxId}
-                onClose={closeContextMenu}
-              />
-            )}
+      <div className="flex gap-8 mt-2">
+        <div className="w-[90vw] h-[90vh]">
+          <figure
+            style={{
+              borderImageSlice: 38,
+              width: `${figureSize.width}px`,
+              height: `${figureSize.height}px`,
+              transform: "translateZ(0px)",
+              borderStyle: "solid",
+              borderImageSource: `url("${selectedFrame.frontFrame}")`,
+              borderImageWidth:
+                (600 /
+                  Math.max(
+                    selectedFrame.dimensions[0].width,
+                    selectedFrame.dimensions[0].height
+                  )) *
+                  selectedFrameWidth +
+                "px",
+              borderImageRepeat: "stretch",
+              transition: "all 0.5s",
+              boxSizing: "border-box",
+            }}
+            className="relative bg-white shadow-lg  border-gray-200 overflow-auto"
+          >
+            <div
+              className="absolute"
+              style={{
+                width: matSize.width,
+                height: matSize.height,
+                background: "#f5f5f5",
+                transform: "translate(-50%, -50%)",
+                top: "50%",
+                left: "50%",
+              }}
+            ></div>
+          </figure>
+        </div>
+
+        <div>
+          <div>
+            <h2 className="text-start mb-2 text-lg text-gray-500 uppercase">
+              Frames Styles
+            </h2>
+            <div className="flex items-center gap-2">
+              {FRAMES.map((frame, index) => (
+                <div key={index} className="">
+                  <img
+                    src={frame.src}
+                    alt={frame.name}
+                    className={`rounded-[2px] h-10 w-10 p-1 border ${
+                      selectedFrame.id === frame.id
+                        ? "border-black"
+                        : "border-gray-400"
+                    } cursor-pointer`}
+                    onClick={() => handleFrameClick(frame)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-5 mt-5">
+            <div>
+              <h2 className="text-start mb-2 text-lg text-gray-500 uppercase">
+                Dimention
+              </h2>
+              <select
+                name="frame-dimention"
+                className="p-2 border border-gray-300 rounded-lg text-gray-700"
+                onChange={handleDimensionSelect}
+              >
+                {selectedFrame.dimensions.map((dimention, index) => (
+                  <option key={index} value={dimention.id}>
+                    {dimention.width} x {dimention.height}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <h2 className="text-start mb-2 text-lg text-gray-500 uppercase">
+                Depth
+              </h2>
+              <select
+                name="frame-depth"
+                className="p-2 border border-gray-300 rounded-lg text-gray-700"
+                onChange={(e) => setSelectedFrameWidth(Number(e.target.value))}
+                value={selectedFrameWidth}
+              >
+                {selectedFrame.depth.map((depth, index) => (
+                  <option key={index} value={depth}>
+                    {depth}"
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="slider-wrapper mt-10">
+            <input
+              id="box-slider"
+              type="range"
+              min={1}
+              max={7}
+              step={0.5} // Step for fractional values
+              value={sliderValue}
+              onChange={(e) => setSliderValue(parseFloat(e.target.value))}
+              style={{ width: "300px" }}
+              className="custom-slider"
+            />
+            <div className="border p-1 w-fit border-[#D9D9D9] rounded-[3px] mt-2">
+              {sliderValue}" MAT
+            </div>
           </div>
         </div>
       </div>

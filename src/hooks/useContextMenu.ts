@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from "react";
 
 interface ContextMenuState {
   show: boolean;
@@ -12,16 +12,18 @@ export const useContextMenu = () => {
     show: false,
     x: 0,
     y: 0,
-    boxId: '',
+    boxId: "",
   });
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, boxId: string) => {
       e.preventDefault();
+      console.log("e ", e);
+
       setContextMenu({
         show: true,
-        x: e.pageX,
-        y: e.pageY,
+        x: e.clientX,
+        y: e.clientY,
         boxId,
       });
     },
@@ -37,9 +39,9 @@ export const useContextMenu = () => {
       closeContextMenu();
     };
 
-    document.addEventListener('click', handleClick);
+    document.addEventListener("click", handleClick);
     return () => {
-      document.removeEventListener('click', handleClick);
+      document.removeEventListener("click", handleClick);
     };
   }, [closeContextMenu]);
 

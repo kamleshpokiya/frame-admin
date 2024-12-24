@@ -1,113 +1,252 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCollageStore } from "../store/useCollageStore";
-
-const FRAMES = [
-  {
-    id: 1,
-    name: "Frame 1",
-    src: "https://d29mtkonxnc5fw.cloudfront.net/site_assets/swatches/black-maple2-swatch.jpg",
-    frontFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/black-frame-face17.jpg",
-    sideFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/black-vector-side9.jpg",
-  },
-  {
-    id: 2,
-    name: "Frame 2",
-    src: "https://d29mtkonxnc5fw.cloudfront.net/site_assets/swatches/white-maple4-swatch.jpg",
-    frontFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/white-frame-vector2.jpg",
-    sideFrame:
-      "	https://d29mtkonxnc5fw.cloudfront.net/site_assets/white-vector-side.jpg",
-  },
-  {
-    id: 3,
-    name: "Frame 3",
-    src: "https://d29mtkonxnc5fw.cloudfront.net/site_assets/swatches/natural-maple2-swatch.jpg",
-    frontFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/natural-frame-face.jpg",
-    sideFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/natural-maple-side2.jpg",
-  },
-  {
-    id: 4,
-    name: "Frame 4",
-    src: "https://d29mtkonxnc5fw.cloudfront.net/site_assets/swatches/natural-walnut-new-swatch.jpg",
-    frontFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/natural-walnut-render-face2.jpg",
-    sideFrame:
-      "https://d29mtkonxnc5fw.cloudfront.net/site_assets/natural-walnut-side-render2.jpg",
-  },
-];
+import { Plus } from "lucide-react";
+import { ResizableBox } from "./ResizableBox";
+import { Guidelines } from "./Guidelines";
+import { ContextMenu } from "./ContextMenu/ContextMenu";
+import { calculateSnapping } from "../utils/snapUtils";
+import { GuidelineType } from "../types";
+import { useContextMenu } from "../hooks/useContextMenu";
 
 const Editor = () => {
-  const [selctedFrame, setSelectedFrame] = useState(FRAMES[0]);
+  // const [selectedWidth, setSelectedWidth] = useState(15);
+  const [guidelines, setGuidelines] = useState<GuidelineType[]>([]);
 
-  const handleFrameClick = (frame: any) => {
-    setSelectedFrame(frame);
-  };
-
-  const { generatedHtml, containerStyle } = useCollageStore();
+  const {
+    generatedHtml,
+    containerStyle,
+    boxes,
+    matSize,
+    addBox,
+    updateBox,
+    selectedBox,
+    pasteBox,
+    selectedFrame,
+  } = useCollageStore();
+  const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu();
+  const [isPreview, setIsPreview] = useState(false);
+  const matRef = useRef<HTMLDivElement>(null);
+  const [matContainer, setMatContainer] = useState<DOMRect | null>(null);
+  // const handleWidthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  //   setSelectedWidth(Number(e.target.value));
+  // };
 
   useEffect(() => {
     console.log("generatedHtml", generatedHtml);
   }, [generatedHtml]);
 
+  const handleDrag = useCallback(
+    (id: string, x: number, y: number) => {
+      const activeBox = boxes.find((box) => box.id === id);
+      if (activeBox) {
+        const otherBoxes = boxes.filter((box) => box.id !== id);
+        const {
+          snappedX,
+          snappedY,
+          guidelines: newGuidelines,
+        } = calculateSnapping({ ...activeBox, x, y }, otherBoxes);
+
+        updateBox(id, { x: snappedX, y: snappedY });
+        setGuidelines(newGuidelines);
+      }
+    },
+    [boxes, updateBox]
+  );
+
+  const handleResize = useCallback(
+    (id: string, width: number, height: number) => {
+      updateBox(id, { width, height });
+      setGuidelines([]); // Clear guidelines when resizing
+    },
+    [updateBox]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        pasteBox();
+      }
+    },
+    [pasteBox]
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
+  useEffect(() => {
+    if (matRef) {
+      const data = matRef.current?.getBoundingClientRect();
+      if (data) {
+        setMatContainer(data);
+      }
+    }
+  }, [matRef]);
   return (
-    <div>
-      <div
-        style={{
-          perspective: "1200px",
-        }}
-      >
-        <div
-        //   style={{
-        //     maxWidth: containerStyle.width + 30 + "px",
-        //     transform: "rotateY(0deg)",
-        //     transition: "transform 1s",
-        //   }}
-        //   className="box_container"
+    <div className="mt-10">
+      <div className="flex gap-3 items-center">
+        {!isPreview && (
+          <button
+            onClick={addBox}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 mb-3"
+          >
+            <Plus size={20} /> Add Box
+          </button>
+        )}
+        <button
+          className="flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg mb-3"
+          onClick={() => setIsPreview(!isPreview)}
         >
-          <figure
-            className="three_dimensional_frame front relative shadow-[0_8px_30px_0_rgba(0,0,0,0.3)]"
+          {isPreview ? "Stop Preview" : "Preview"}
+        </button>
+      </div>
+      {isPreview ? (
+        <div
+          style={{
+            perspective: "1200px",
+          }}
+        >
+          <div
+            className="box_container relative"
             style={{
-              borderImageSlice: 38,
-              width: containerStyle.width + 30 + "px",
-              height: containerStyle.height + 30 + "px",
-              background: "transparent",
-              transform: "translateZ(0px)",
-              borderStyle: "solid",
-              borderImageSource: `url("${selctedFrame.frontFrame}")`,
-              borderImageWidth: "15px",
-              borderImageRepeat: "stretch",
+              opacity: 1,
+              transform: "rotateY(0deg)",
+              transition: "transform 1s",
+              width: `${containerStyle.width}px`,
+              height: `${containerStyle.height}px`,
             }}
           >
-            <div dangerouslySetInnerHTML={{ __html: generatedHtml }}></div>
+            <figure
+              style={{
+                borderImageSlice: 38,
+                width: `${containerStyle.width}px`,
+                height: `${containerStyle.height}px`,
+                transform: "translateZ(0px)",
+                borderStyle: "solid",
+                borderImageSource: `url("${selectedFrame?.frontFrame}")`,
+                borderImageWidth: `15px`,
+                borderImageRepeat: "stretch",
+                transition: "all 0.5s",
+                boxSizing: "border-box",
+              }}
+              className="relative bg-white shadow-lg  border-gray-200 "
+            >
+              <div
+                className="absolute bg-gray-100"
+                style={{
+                  width: matSize.width,
+                  height: matSize.height,
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                {boxes.map((box) => (
+                  <div
+                    style={{
+                      width: box.width,
+                      height: box.height,
+                      left: box.x,
+                      top: box.y,
+                      position: "absolute",
+                      backgroundColor: box.background,
+                    }}
+                  ></div>
+                ))}
+              </div>
+            </figure>
+            <figure
+              className="right three_d_face absolute"
+              style={{
+                background: `url("${selectedFrame?.frontFrame}")`,
+                width: "20.2532px",
+                height: "100%",
+                left: "-20px",
+                top: 0,
+                transform:
+                  "rotateY(99deg) translateZ(10.1266px) translateY(0px) translateX(10.1266px)",
+              }}
+            ></figure>
+            <figure
+              className="left three_d_face absolute"
+              style={{
+                background: `url("${selectedFrame?.sideFrame}")`,
+                width: "20.2532px",
+                height: "100%",
+                right: "-20px",
+                top: 0,
+                transform:
+                  "rotateY(99deg) translateZ(-9.3966px) translateY(0px) translateX(11.1266px)",
+              }}
+            ></figure>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="relative bg-white"
+          style={{
+            width: containerStyle.width,
+            height: containerStyle.height,
+          }}
+        >
+          <figure
+            style={{
+              borderImageSlice: 38,
+              width: `${containerStyle.width}px`,
+              height: `${containerStyle.height}px`,
+              transform: "translateZ(0px)",
+              borderStyle: "solid",
+              borderImageSource: `url("${selectedFrame?.frontFrame}")`,
+              borderImageWidth: `15px`,
+              borderImageRepeat: "stretch",
+              transition: "all 0.5s",
+              boxSizing: "border-box",
+            }}
+            className="relative bg-white shadow-lg  border-gray-200 "
+          >
+            <div
+              className="absolute bg-gray-100"
+              style={{
+                width: matSize.width,
+                height: matSize.height,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+              ref={matRef}
+            >
+              {boxes.map((box) => (
+                <ResizableBox
+                  key={box.id}
+                  box={box}
+                  onDrag={handleDrag}
+                  onResize={handleResize}
+                  isSelected={box.id === selectedBox}
+                  onContextMenu={handleContextMenu}
+                />
+              ))}
+              <Guidelines guidelines={guidelines} />
+              {contextMenu.show && (
+                <ContextMenu
+                  x={contextMenu.x - (matContainer ? matContainer.left : 0)}
+                  y={contextMenu.y - (matContainer ? matContainer.top : 0)}
+                  boxId={contextMenu.boxId}
+                  onClose={closeContextMenu}
+                />
+              )}
+            </div>
           </figure>
         </div>
-      </div>
-
-      <div className="mt-20">
-        <h2 className="text-start mb-2 text-lg text-gray-500 uppercase">
-          Frames Styles
-        </h2>
-        <div className="flex items-center gap-2">
-          {FRAMES.map((frame, index) => (
-            <div key={index} className="">
-              <img
-                src={frame.src}
-                alt={frame.name}
-                className={`rounded-[2px] h-10 w-10 p-1 border ${
-                  selctedFrame.id === frame.id
-                    ? "border-black"
-                    : "border-gray-400"
-                } cursor-pointer`}
-                onClick={() => handleFrameClick(frame)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
