@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { useCollageStore } from '../store/useCollageStore';
-import { Box } from '../types';
-import { DraggableWrapper } from './DraggableWrapper';
-import { ResizableWrapper } from './ResizableWrapper';
-import { BoxContent } from './BoxContent';
+import React, { useCallback, useEffect, useState, useRef } from "react";
+import { useCollageStore } from "../store/useCollageStore";
+import { Box } from "../types";
+import { DraggableWrapper } from "./DraggableWrapper";
+import { ResizableWrapper } from "./ResizableWrapper";
+import { BoxContent } from "./BoxContent";
 
 interface Props {
   box: Box;
@@ -48,11 +48,7 @@ export const ResizableBox: React.FC<Props> = ({
   };
 
   return (
-    <DraggableWrapper
-      ref={nodeRef}
-      position={position}
-      onDrag={handleDrag}
-    >
+    <DraggableWrapper ref={nodeRef} position={position} onDrag={handleDrag}>
       <ResizableWrapper
         width={box.width}
         height={box.height}

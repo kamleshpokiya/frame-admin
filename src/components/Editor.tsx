@@ -9,31 +9,14 @@ import { GuidelineType } from "../types";
 import { useContextMenu } from "../hooks/useContextMenu";
 
 const Editor = () => {
-  // const [selectedWidth, setSelectedWidth] = useState(15);
   const [guidelines, setGuidelines] = useState<GuidelineType[]>([]);
 
-  const {
-    generatedHtml,
-    containerStyle,
-    boxes,
-    matSize,
-    addBox,
-    updateBox,
-    selectedBox,
-    pasteBox,
-    selectedFrame,
-  } = useCollageStore();
+  const { boxes, addBox, updateBox, selectedBox, pasteBox, frameContext } =
+    useCollageStore();
   const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu();
   const [isPreview, setIsPreview] = useState(false);
   const matRef = useRef<HTMLDivElement>(null);
   const [matContainer, setMatContainer] = useState<DOMRect | null>(null);
-  // const handleWidthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-  //   setSelectedWidth(Number(e.target.value));
-  // };
-
-  useEffect(() => {
-    console.log("generatedHtml", generatedHtml);
-  }, [generatedHtml]);
 
   const handleDrag = useCallback(
     (id: string, x: number, y: number) => {
@@ -91,9 +74,11 @@ const Editor = () => {
       }
     }
   }, [matRef]);
+
   return (
     <div className="mt-10">
       <div className="flex gap-3 items-center">
+        {frameContext.dimensions.width} x {frameContext.dimensions.height}
         {!isPreview && (
           <button
             onClick={addBox}
@@ -116,38 +101,50 @@ const Editor = () => {
           }}
         >
           <div
-            className="box_container relative"
+            className="box_container relative shadow-[0_8px_30px_0_rgba(0,0,0,0.3)]"
             style={{
               opacity: 1,
               transform: "rotateY(0deg)",
               transition: "transform 1s",
-              width: `${containerStyle.width}px`,
-              height: `${containerStyle.height}px`,
+              width: `${frameContext.dimensions.width * frameContext.pxUnit}px`,
+              height: `${
+                frameContext.dimensions.height * frameContext.pxUnit
+              }px`,
             }}
           >
             <figure
               style={{
                 borderImageSlice: 38,
-                width: `${containerStyle.width}px`,
-                height: `${containerStyle.height}px`,
+                width: `${
+                  frameContext.dimensions.width * frameContext.pxUnit
+                }px`,
+                height: `${
+                  frameContext.dimensions.height * frameContext.pxUnit
+                }px`,
                 transform: "translateZ(0px)",
                 borderStyle: "solid",
-                borderImageSource: `url("${selectedFrame?.frontFrame}")`,
-                borderImageWidth: `15px`,
+                borderImageSource: `url("${frameContext?.frame?.frontFrame}")`,
+                borderImageWidth:
+                  frameContext.pxUnit * frameContext.depth + "px",
                 borderImageRepeat: "stretch",
                 transition: "all 0.5s",
-                boxSizing: "border-box",
+                boxShadow: "rgba(0, 0, 0, 0.7) 0px 0px 6px 18px inset",
               }}
-              className="relative bg-white shadow-lg  border-gray-200 "
+              className="bg-white"
             >
               <div
-                className="absolute bg-gray-100"
+                className="absolute bg-gray-100 translate-y-[-50%] translate-x-[-50%] top-1/2 left-1/2"
                 style={{
-                  width: matSize.width,
-                  height: matSize.height,
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
+                  width:
+                    frameContext.pxUnit *
+                      (frameContext.dimensions.width -
+                        (frameContext.mat + frameContext.depth) * 2) +
+                    "px",
+                  height:
+                    frameContext.pxUnit *
+                      (frameContext.dimensions.height -
+                        (frameContext.mat + frameContext.depth) * 2) +
+                    "px",
                 }}
               >
                 {boxes.map((box) => (
@@ -165,25 +162,19 @@ const Editor = () => {
               </div>
             </figure>
             <figure
-              className="right three_d_face absolute"
+              className="right three_d_face absolute h-full top-0 -left-5"
               style={{
-                background: `url("${selectedFrame?.frontFrame}")`,
+                background: `url("${frameContext?.frame?.frontFrame}")`,
                 width: "20.2532px",
-                height: "100%",
-                left: "-20px",
-                top: 0,
                 transform:
                   "rotateY(99deg) translateZ(10.1266px) translateY(0px) translateX(10.1266px)",
               }}
             ></figure>
             <figure
-              className="left three_d_face absolute"
+              className="left three_d_face absolute h-full top-0 -right-5"
               style={{
-                background: `url("${selectedFrame?.sideFrame}")`,
+                background: `url("${frameContext?.frame?.sideFrame}")`,
                 width: "20.2532px",
-                height: "100%",
-                right: "-20px",
-                top: 0,
                 transform:
                   "rotateY(99deg) translateZ(-9.3966px) translateY(0px) translateX(11.1266px)",
               }}
@@ -192,35 +183,43 @@ const Editor = () => {
         </div>
       ) : (
         <div
-          className="relative bg-white"
+          className="relative bg-white mt-5"
           style={{
-            width: containerStyle.width,
-            height: containerStyle.height,
+            width: `${frameContext.dimensions.width * frameContext.pxUnit}px`,
+            height: `${frameContext.dimensions.height * frameContext.pxUnit}px`,
           }}
         >
           <figure
             style={{
               borderImageSlice: 38,
-              width: `${containerStyle.width}px`,
-              height: `${containerStyle.height}px`,
+              width: `${frameContext.dimensions.width * frameContext.pxUnit}px`,
+              height: `${
+                frameContext.dimensions.height * frameContext.pxUnit
+              }px`,
               transform: "translateZ(0px)",
               borderStyle: "solid",
-              borderImageSource: `url("${selectedFrame?.frontFrame}")`,
-              borderImageWidth: `15px`,
+              borderImageSource: `url("${frameContext?.frame?.frontFrame}")`,
+              borderImageWidth: frameContext.pxUnit * frameContext.depth + "px",
               borderImageRepeat: "stretch",
               transition: "all 0.5s",
-              boxSizing: "border-box",
+              zIndex: 10,
             }}
-            className="relative bg-white shadow-lg  border-gray-200 "
+            className="bg-white shadow-lg  border-gray-200 box-border"
           >
             <div
-              className="absolute bg-gray-100"
+              className="absolute bg-gray-100 translate-y-[-50%] translate-x-[-50%] top-1/2 left-1/2"
               style={{
-                width: matSize.width,
-                height: matSize.height,
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
+                width:
+                  frameContext.pxUnit *
+                    (frameContext.dimensions.width -
+                      (frameContext.mat + frameContext.depth) * 2) +
+                  "px",
+                height:
+                  frameContext.pxUnit *
+                    (frameContext.dimensions.height -
+                      (frameContext.mat + frameContext.depth) * 2) +
+                  "px",
+                zIndex: 10,
               }}
               ref={matRef}
             >

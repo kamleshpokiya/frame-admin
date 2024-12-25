@@ -5,77 +5,44 @@ import { FRAMES } from "../constants/frames";
 import { IFrames } from "../constants/types";
 
 export const Board: React.FC = () => {
-  const {
-    boxes,
-    setGeneratedHtml,
-    updateContainerStyle,
-    matSize,
-    updateMatSize,
-    updatedFrame,
-  } = useCollageStore();
+  const { setFrameContext, frameContext } = useCollageStore();
 
-  const [selectedFrame, setSelectedFrame] = useState(FRAMES[0]);
-  const [selectedDimension, setSelectedDimension] = useState({
-    width: FRAMES[0].dimensions[0].width,
-    height: FRAMES[0].dimensions[0].width,
-  });
-  const [sliderValue, setSliderValue] = useState(1);
-  const [figureSize, setFigureSize] = useState({ width: 600, height: 600 });
-  const [matsSize, setMatsSize] = useState({
-    width: 500,
-    height: 500,
-  });
-  const [selectedFrameWidth, setSelectedFrameWidth] = useState(1);
-
-  // Handle Dimension Change
-  const handleDimensionChange = (dimension: {
-    width: number;
-    height: number;
-  }) => {
-    const { width, height } = dimension;
-
-    const newWidth =
-      width >= height
-        ? {
-            width: 600,
-            height: (height * 600) / width,
-          }
-        : {
-            width: (width * 600) / height,
-            height: 600,
-          };
-    setFigureSize(newWidth);
-    updateContainerStyle({
-      width: newWidth.width,
-      height: newWidth.height,
-    });
-    setMatsSize({
-      width: newWidth.width - 100,
-      height: newWidth.height - 100,
-    });
-  };
-
-  // Handle Mate Size based on Slider
+  const [selectedFrame, setSelectedFrame] = useState(
+    frameContext?.frame || FRAMES[0]
+  );
+  const [selectedDimension, setSelectedDimension] = useState(
+    frameContext.dimensions.width === 0
+      ? {
+          width: FRAMES[0].dimensions[0].width,
+          height: FRAMES[0].dimensions[0].height,
+        }
+      : frameContext.dimensions
+  );
+  const [pxUnit, setPxUnit] = useState(
+    frameContext.pxUnit === 0
+      ? 600 / Math.max(selectedDimension.width, selectedDimension.height)
+      : frameContext.pxUnit
+  );
+  const [matValue, setMatValue] = useState(frameContext.mat);
+  const [selectedFrameWidth, setSelectedFrameWidth] = useState(
+    frameContext.depth
+  );
   useEffect(() => {
-    const step = sliderValue - 1; // Steps after the default value (1)
-    const decreasePercentage = step * 3; // 3% decrease per step
-
-    const newWidth = matsSize.width * (1 - decreasePercentage / 100);
-    const newHeight = matsSize.height * (1 - decreasePercentage / 100);
-
-    updateMatSize({
-      width: newWidth,
-      height: newHeight,
-    });
-  }, [sliderValue, matsSize]);
+    setPxUnit(
+      600 / Math.max(selectedDimension.width, selectedDimension.height)
+    );
+  }, [selectedDimension]);
 
   const navigate = useNavigate();
 
   const handleFrameClick = (frame: IFrames) => {
     setSelectedFrame(frame);
-    handleDimensionChange(frame.dimensions[0]);
-    updatedFrame(frame);
     setSelectedFrameWidth(frame.depth[0]);
+
+    setSelectedDimension({
+      width: frame.dimensions[0].width + (frame.depth[0] - 1) * 2,
+      height: frame.dimensions[0].height + (frame.depth[0] - 1) * 2,
+    });
   };
 
   const handleDimensionSelect = (
@@ -85,31 +52,21 @@ export const Board: React.FC = () => {
       (d) => d.id === Number(event.target.value)
     );
     if (selectedDimension) {
-      handleDimensionChange(selectedDimension);
       setSelectedDimension(selectedDimension);
+      setMatValue(1);
+      setSelectedFrameWidth(1);
     }
   };
 
-  const generateHtml = () => {
-    const boxesHtml = boxes
-      .map(
-        (box) => `<div style="
-  position: absolute;
-  left: ${box.x}px;
-  top: ${box.y}px;
-  width: ${box.width}px;
-  height: ${box.height}px;
-  background: ${box.background};
-"></div>`
-      )
-      .join("\n");
-    return boxesHtml;
-  };
-
   const handleNext = () => {
-    const html = generateHtml();
-    setGeneratedHtml(html);
     navigate("/editor");
+    setFrameContext({
+      depth: selectedFrameWidth,
+      dimensions: selectedDimension,
+      mat: matValue,
+      pxUnit,
+      frame: selectedFrame,
+    });
   };
 
   return (
@@ -129,40 +86,53 @@ export const Board: React.FC = () => {
       </div>
 
       <div className="flex gap-8 mt-2">
-        <div className="w-[90vw] h-[90vh]">
+        <div className="w-[90vw] h-[90vh] box-border">
           <figure
             style={{
               borderImageSlice: 38,
-              width: `${figureSize.width}px`,
-              height: `${figureSize.height}px`,
+              width: `${selectedDimension.width * pxUnit}px`,
+              height: `${selectedDimension.height * pxUnit}px`,
               transform: "translateZ(0px)",
               borderStyle: "solid",
               borderImageSource: `url("${selectedFrame.frontFrame}")`,
-              borderImageWidth:
-                (600 /
-                  Math.max(
-                    selectedFrame.dimensions[0].width,
-                    selectedFrame.dimensions[0].height
-                  )) *
-                  selectedFrameWidth +
-                "px",
+              borderImageWidth: pxUnit * selectedFrameWidth + "px",
               borderImageRepeat: "stretch",
               transition: "all 0.5s",
-              boxSizing: "border-box",
             }}
             className="relative bg-white shadow-lg  border-gray-200 overflow-auto"
           >
             <div
-              className="absolute"
+              className="absolute -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 bg-[#f5f5f5]"
               style={{
-                width: matSize.width,
-                height: matSize.height,
-                background: "#f5f5f5",
-                transform: "translate(-50%, -50%)",
-                top: "50%",
-                left: "50%",
+                width:
+                  pxUnit *
+                    (selectedDimension.width -
+                      (matValue + selectedFrameWidth) * 2) +
+                  "px",
+                height:
+                  pxUnit *
+                    (selectedDimension.height -
+                      (matValue + selectedFrameWidth) * 2) +
+                  "px",
               }}
-            ></div>
+            >
+              {/* controlls inside content */}
+
+              {/* {boxes.map((box) => {
+                return (
+                  <div
+                    style={{
+                      width: (box.width / frameContext.pxUnit) * pxUnit,
+                      height: (box.height / frameContext.pxUnit) * pxUnit,
+                      left: (box.x / frameContext.pxUnit) * pxUnit,
+                      top: (box.y / frameContext.pxUnit) * pxUnit,
+                      position: "absolute",
+                      backgroundColor: box.background,
+                    }}
+                  ></div>
+                );
+              })} */}
+            </div>
           </figure>
         </div>
 
@@ -213,7 +183,15 @@ export const Board: React.FC = () => {
               <select
                 name="frame-depth"
                 className="p-2 border border-gray-300 rounded-lg text-gray-700"
-                onChange={(e) => setSelectedFrameWidth(Number(e.target.value))}
+                onChange={(e) => {
+                  const oldWidth = selectedFrameWidth;
+                  setSelectedFrameWidth(Number(e.target.value));
+                  setSelectedDimension((prev) => ({
+                    width: prev.width + (Number(e.target.value) - oldWidth) * 2,
+                    height:
+                      prev.height + (Number(e.target.value) - oldWidth) * 2,
+                  }));
+                }}
                 value={selectedFrameWidth}
               >
                 {selectedFrame.depth.map((depth, index) => (
@@ -232,13 +210,20 @@ export const Board: React.FC = () => {
               min={1}
               max={7}
               step={0.5} // Step for fractional values
-              value={sliderValue}
-              onChange={(e) => setSliderValue(parseFloat(e.target.value))}
-              style={{ width: "300px" }}
-              className="custom-slider"
+              value={matValue}
+              onChange={(e) => {
+                setMatValue(parseFloat(e.target.value));
+                setSelectedDimension((prev) => ({
+                  width:
+                    prev.width + (parseFloat(e.target.value) - matValue) * 2,
+                  height:
+                    prev.height + (parseFloat(e.target.value) - matValue) * 2,
+                }));
+              }}
+              className="custom-slider w-[300px]"
             />
             <div className="border p-1 w-fit border-[#D9D9D9] rounded-[3px] mt-2">
-              {sliderValue}" MAT
+              {matValue}" MAT
             </div>
           </div>
         </div>

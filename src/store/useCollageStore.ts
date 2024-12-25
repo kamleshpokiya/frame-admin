@@ -13,34 +13,37 @@ interface CollageStore {
   copyBox: (id: string) => void;
   deleteBox: (id: string) => void;
   pasteBox: () => void;
-  setGeneratedHtml: (html: string) => void;
-  generatedHtml: string;
-  containerStyle: { width: number; height: number; x: number; y: number };
-  updateContainerStyle: (
-    updates: Partial<{ width: number; height: number; x: number; y: number }>
+  frameContext: {
+    dimensions: { width: number; height: number };
+    depth: number;
+    pxUnit: number;
+    mat: number;
+    frame: IFrames | null;
+  };
+  setFrameContext: (
+    updates: Partial<{
+      dimensions: { width: number; height: number };
+      depth: number;
+      pxUnit: number;
+      mat: number;
+      frame: IFrames | null;
+    }>
   ) => void;
-  matSize: { width: number; height: number };
-  updateMatSize: (updates: Partial<{ width: number; height: number }>) => void;
-  selectedFrame: IFrames | null;
-  updatedFrame: (frame: IFrames | null) => void;
 }
 
 export const useCollageStore = create<CollageStore>((set, get) => ({
   boxes: [],
   selectedBox: null,
   copiedBox: null,
-  containerStyle: {
-    width: 600,
-    height: 600,
-    x: 0,
-    y: 0,
-  },
-  generatedHtml: "",
-  matSize: {
-    width: 480, // Default proportional size (80% of width)
-    height: 480, // Default proportional size (80% of height)
-  },
+
   selectedFrame: FRAMES[0],
+  frameContext: {
+    dimensions: { width: 0, height: 0 },
+    depth: 1,
+    pxUnit: 0,
+    mat: 1,
+    frame: null,
+  },
 
   addBox: () => {
     set((state) => ({
@@ -50,8 +53,8 @@ export const useCollageStore = create<CollageStore>((set, get) => ({
           id: `box-${state.boxes.length + 1}`,
           x: 20,
           y: 20,
-          width: 150,
-          height: 150,
+          width: 4 * state.frameContext.pxUnit,
+          height: 4 * state.frameContext.pxUnit,
           background: "#333333",
         },
       ],
@@ -98,25 +101,13 @@ export const useCollageStore = create<CollageStore>((set, get) => ({
       });
     }
   },
-  setGeneratedHtml: (html) => {
-    set({ generatedHtml: html });
-  },
-  updateContainerStyle: (updates) => {
-    set((state) => ({
-      containerStyle: {
-        ...state.containerStyle,
-        ...updates,
-      },
-    }));
-  },
 
-  updateMatSize: (updates) => {
+  setFrameContext(updates) {
     set((state) => ({
-      matSize: {
-        ...state.matSize,
+      frameContext: {
+        ...state.frameContext,
         ...updates,
       },
     }));
   },
-  updatedFrame: (frame) => set({ selectedFrame: frame }),
 }));
