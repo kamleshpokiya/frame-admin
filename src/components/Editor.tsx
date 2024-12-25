@@ -7,6 +7,7 @@ import { ContextMenu } from "./ContextMenu/ContextMenu";
 import { calculateSnapping } from "../utils/snapUtils";
 import { GuidelineType } from "../types";
 import { useContextMenu } from "../hooks/useContextMenu";
+import MatContainer from "./MatContainer";
 
 const Editor = () => {
   const [guidelines, setGuidelines] = useState<GuidelineType[]>([]);
@@ -128,25 +129,11 @@ const Editor = () => {
                   frameContext.pxUnit * frameContext.depth + "px",
                 borderImageRepeat: "stretch",
                 transition: "all 0.5s",
-                boxShadow: "rgba(0, 0, 0, 0.7) 0px 0px 6px 18px inset",
+                boxShadow: "rgba(0, 0, 0, 0.7) 0px 2px 5px inset",
               }}
               className="bg-white"
             >
-              <div
-                className="absolute bg-gray-100 translate-y-[-50%] translate-x-[-50%] top-1/2 left-1/2"
-                style={{
-                  width:
-                    frameContext.pxUnit *
-                      (frameContext.dimensions.width -
-                        (frameContext.mat + frameContext.depth) * 2) +
-                    "px",
-                  height:
-                    frameContext.pxUnit *
-                      (frameContext.dimensions.height -
-                        (frameContext.mat + frameContext.depth) * 2) +
-                    "px",
-                }}
-              >
+              <MatContainer frameContext={frameContext}>
                 {boxes.map((box) => (
                   <div
                     style={{
@@ -159,7 +146,7 @@ const Editor = () => {
                     }}
                   ></div>
                 ))}
-              </div>
+              </MatContainer>
             </figure>
             <figure
               className="right three_d_face absolute h-full top-0 -left-5"
